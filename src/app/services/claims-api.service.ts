@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, catchError, tap, throwError } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import {
   BootstrapMetadata,
@@ -13,12 +13,22 @@ import {
 @Injectable({ providedIn: 'root' })
 export class ClaimsApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:5150/api';
-  private readonly hubUrl = 'http://localhost:5150/hubs/claims';
+
+  // Supports both http://localhost:5150 (launchSettings) and https://localhost:5001 (VS Code C# debugger default)
+  readonly activeServerOrigin = signal<string>('http://localhost:5150');
+  readonly apiError = signal<string | null>(null);
   private hubConnection?: signalR.HubConnection;
 
   readonly signalRConnected = signal<boolean>(false);
   readonly lastLiveEvent = signal<{ eventType: string; claimId: string; timestamp: string } | null>(null);
+
+  private get baseUrl(): string {
+    return `${this.activeServerOrigin()}/api`;
+  }
+
+  private get hubUrl(): string {
+    return `${this.activeServerOrigin()}/hubs/claims`;
+  }
 
   private buildHeaders(persona: Persona | null): HttpHeaders {
     if (!persona) return new HttpHeaders();
@@ -30,7 +40,10 @@ export class ClaimsApiService {
   }
 
   connectSignalR(onEventCallback: () => void): void {
-    if (this.hubConnection) return;
+    if (this.hubConnection) {
+      this.hubConnection.stop().catch(() => {});
+      this.hubConnection = undefined;
+    }
 
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(this.hubUrl)
@@ -56,8 +69,38 @@ export class ClaimsApiService {
       .catch(() => this.signalRConnected.set(false));
   }
 
-  getBootstrapMetadata(): Observable<BootstrapMetadata> {
-    return this.http.get<BootstrapMetadata>(`${this.baseUrl}/metadata/bootstrap`);
+  getBootstrapMetadata(onEventCallback?: () => void): Observable<BootstrapMetadata> {
+    return this.http.get<BootstrapMetadata>(`${this.baseUrl}/metadata/bootstrap`).pipe(
+      tap(() => {
+        this.apiError.set(null);
+        if (onEventCallback) this.connectSignalR(onEventCallback);
+      }),
+      catchError(() => {
+        // Fallback to https://localhost:5001 if started via VS Code debugger without launchSettings
+        this.activeServerOrigin.set('https://localhost:5001');
+        return this.http.get<BootstrapMetadata>(`${this.baseUrl}/metadata/bootstrap`).pipe(
+          tap(() => {
+            this.apiError.set(null);
+            if (onEventCallback) this.connectSignalR(onEventCallback);
+          }),
+          catchError(() => {
+            this.activeServerOrigin.set('http://localhost:5000');
+            return this.http.get<BootstrapMetadata>(`${this.baseUrl}/metadata/bootstrap`).pipe(
+              tap(() => {
+                this.apiError.set(null);
+                if (onEventCallback) this.connectSignalR(onEventCallback);
+              }),
+              catchError(err => {
+                this.apiError.set(
+                  'Cannot reach Chubb.Claims.Api on http://localhost:5150 or https://localhost:5001. Ensure the .NET 10 API is running.'
+                );
+                return throwError(() => err);
+              })
+            );
+          })
+        );
+      })
+    );
   }
 
   getClaims(
