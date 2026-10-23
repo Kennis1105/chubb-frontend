@@ -328,7 +328,37 @@ import {
                 </button>
               </div>
 
-              <!-- STEP 2: Officer Actions when Claim is Under Review -->
+              <!-- STEP 2: Officer Assessment -->
+              <div
+                *ngIf="detail.status === 'UnderReview' || detail.status === 'InfoRequested'"
+                class="action-box"
+                style="margin-top: 0;">
+                <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.65rem;">Update Assessment</div>
+                <div class="form-group">
+                  <label class="form-label">Assessed Reserve ({{ detail.currency }})</label>
+                  <input type="number" min="0.01" step="0.01" class="form-control mono" [(ngModel)]="assessedReserveInput" />
+                  <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.3rem;">
+                    Current reserve: {{ detail.currency }} {{ (detail.assessedReserve ?? detail.estimatedLoss) | number:'1.2-2' }}
+                  </div>
+                </div>
+                <div class="form-group" style="margin-top: 0.65rem;">
+                  <label class="form-label">Internal Assessment Note (Optional)</label>
+                  <textarea rows="2" class="form-control" placeholder="Record assessment details for claims staff..." [(ngModel)]="internalAssessmentNoteInput"></textarea>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 0.65rem;">
+                  <button class="btn btn-primary" [disabled]="!canSaveAssessment(detail)" (click)="onUpdateAssessment(detail)">
+                    Save Assessment
+                  </button>
+                </div>
+                <div *ngIf="detail.notes.length > 0" style="border-top: 1px solid var(--border-color); margin-top: 0.8rem; padding-top: 0.65rem;">
+                  <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem;">Internal Notes</div>
+                  <div *ngFor="let note of detail.notes" style="font-size: 0.82rem; margin-bottom: 0.35rem;">
+                    <strong>{{ note.authorName }}:</strong> {{ note.content }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- STEP 3: Officer Actions when Claim is Under Review -->
               <div *ngIf="detail.status === 'UnderReview'" style="display: flex; flex-direction: column; gap: 0.85rem;">
                 <!-- Request Additional Info -->
                 <div class="action-box" style="margin-top: 0;">
@@ -487,6 +517,8 @@ export class AppComponent implements OnInit {
 
   claimantResponseText = '';
   officerQuestionInput = '';
+  assessedReserveInput: number | null = null;
+  internalAssessmentNoteInput = '';
   settlementAmountInput = 0;
   decisionRationaleInput = '';
 
@@ -567,6 +599,8 @@ export class AppComponent implements OnInit {
     this.api.getClaimById(id, this.activePersona()).subscribe(detail => {
       this.selectedClaim.set(detail);
       if (resetInputs) {
+        this.assessedReserveInput = detail.assessedReserve ?? detail.estimatedLoss;
+        this.internalAssessmentNoteInput = '';
         this.settlementAmountInput = detail.assessedReserve ?? detail.estimatedLoss;
         this.officerQuestionInput = '';
         this.decisionRationaleInput = '';
@@ -604,7 +638,35 @@ export class AppComponent implements OnInit {
   onPickUpClaim(claimId: string): void {
     this.api.pickUpClaim(claimId, this.activePersona()).subscribe(updated => {
       this.selectedClaim.set(updated);
+      this.assessedReserveInput = updated.assessedReserve ?? updated.estimatedLoss;
       this.showToast(`Claim ${updated.claimNumber} picked up and assigned to ${this.activePersona()?.name}.`);
+      this.loadClaims(false);
+      this.loadAnalytics();
+    });
+  }
+
+  canSaveAssessment(detail: ClaimDetail): boolean {
+    const reserveChanged = this.assessedReserveInput !== null &&
+      this.assessedReserveInput !== (detail.assessedReserve ?? detail.estimatedLoss);
+    return (!reserveChanged || this.assessedReserveInput! > 0) &&
+      (reserveChanged || !!this.internalAssessmentNoteInput.trim());
+  }
+
+  onUpdateAssessment(detail: ClaimDetail): void {
+    if (!this.canSaveAssessment(detail)) return;
+
+    const reserveChanged = this.assessedReserveInput !== null &&
+      this.assessedReserveInput !== (detail.assessedReserve ?? detail.estimatedLoss);
+    const note = this.internalAssessmentNoteInput.trim();
+    this.api.updateAssessment(detail.id, this.activePersona(), {
+      assessedReserve: reserveChanged ? this.assessedReserveInput : undefined,
+      internalNote: note || undefined
+    }).subscribe(updated => {
+      this.selectedClaim.set(updated);
+      this.assessedReserveInput = updated.assessedReserve ?? updated.estimatedLoss;
+      this.settlementAmountInput = updated.assessedReserve ?? updated.estimatedLoss;
+      this.internalAssessmentNoteInput = '';
+      this.showToast(`Assessment saved for ${updated.claimNumber}.`);
       this.loadClaims(false);
       this.loadAnalytics();
     });
