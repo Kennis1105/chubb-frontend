@@ -84,8 +84,6 @@ export interface ClaimDetail extends ClaimSummary {
   claimantPhone: string;
   incidentDescription: string;
   fxRateToUsd: number;
-  realizedPayoutUsd: number;
-  releasedReserveUsd: number;
   decisionNotes: string | null;
   closedAtUtc: string | null;
   informationRequests: ClaimInformationRequest[];
