@@ -32,7 +32,7 @@ import {
           [ngClass]="activeRole() === 'Claimant' ? 'btn-primary' : 'btn-outline'"
           style="padding: 0.45rem 1rem;"
           (click)="switchRole('Claimant')">
-            User 1: Claimant ({{ claimantUser()?.name || 'Tan Wei Ming' }})
+            User 1: Claimant ({{ claimantUser()?.name || 'Lim Hean Soon' }})
         </button>
 
         <button
@@ -40,7 +40,7 @@ import {
           [ngClass]="activeRole() === 'ClaimsOfficer' ? 'btn-primary' : 'btn-outline'"
           style="padding: 0.45rem 1rem;"
           (click)="switchRole('ClaimsOfficer')">
-            User 2: Claims Officer ({{ officerUser()?.name || 'Sarah Jenkins' }})
+            User 2: Claims Officer ({{ officerUser()?.name || 'Admin Officer' }})
         </button>
       </div>
     </header>
@@ -74,7 +74,7 @@ import {
       <section *ngIf="activeRole() === 'Claimant'">
         <div class="persona-context-bar">
           <div>
-            <h2 style="font-size: 1.1rem; font-weight: 700;">Welcome, {{ activePersona()?.name || 'Tan Wei Ming' }} (Customer Portal)</h2>
+            <h2 style="font-size: 1.1rem; font-weight: 700;">Welcome, {{ activePersona()?.name || 'Lim Hean Soon' }} (Customer Portal)</h2>
             <p style="font-size: 0.82rem; color: var(--text-muted);">
               Submit a new insurance claim, track your claim status, respond to officer requests, and view decisions.
             </p>
@@ -417,17 +417,19 @@ import {
           <button class="btn btn-outline" style="padding: 0.2rem 0.6rem;" (click)="showFnolModal.set(false)">✕</button>
         </div>
 
-        <div style="padding: 1.25rem;">
+        <form style="padding: 1.25rem;" (ngSubmit)="onSubmitFnol()" #claimForm="ngForm">
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">APAC Market</label>
-              <select class="form-control" [(ngModel)]="fnolForm.market">
+              <select class="form-control" name="market" [(ngModel)]="fnolForm.market" required>
+                <option value="" disabled>Select a market</option>
                 <option *ngFor="let m of markets()" [value]="m.code">{{ m.code }} — {{ m.countryName }} ({{ m.currency }})</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Claim Type</label>
-              <select class="form-control" [(ngModel)]="fnolForm.claimType">
+              <select class="form-control" name="claimType" [(ngModel)]="fnolForm.claimType" required>
+                <option value="" disabled>Select a claim type</option>
                 <option value="Motor">Motor</option>
                 <option value="Property">Property</option>
               </select>
@@ -437,35 +439,35 @@ import {
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Policy Number</label>
-              <input type="text" class="form-control mono" [(ngModel)]="fnolForm.policyNumber" />
+              <input type="text" class="form-control mono" name="policyNumber" [(ngModel)]="fnolForm.policyNumber" required />
             </div>
             <div class="form-group">
               <label class="form-label">Vehicle Plate or Property Address</label>
-              <input type="text" class="form-control" [(ngModel)]="fnolForm.assetIdentifier" />
+              <input type="text" class="form-control" name="assetIdentifier" [(ngModel)]="fnolForm.assetIdentifier" required />
             </div>
           </div>
 
           <div class="form-grid">
             <div class="form-group">
               <label class="form-label">Incident Location</label>
-              <input type="text" class="form-control" [(ngModel)]="fnolForm.incidentLocation" />
+              <input type="text" class="form-control" name="incidentLocation" [(ngModel)]="fnolForm.incidentLocation" required />
             </div>
             <div class="form-group">
-              <label class="form-label">Claim Amount ({{ selectedMarketCurrency() }})</label>
-              <input type="number" class="form-control mono" [(ngModel)]="fnolForm.estimatedLoss" />
+              <label class="form-label">Claim Amount{{ selectedMarketCurrency() ? ' (' + selectedMarketCurrency() + ')' : '' }}</label>
+              <input type="number" class="form-control mono" name="estimatedLoss" [(ngModel)]="fnolForm.estimatedLoss" min="0.01" step="0.01" required />
             </div>
           </div>
 
           <div class="form-group">
             <label class="form-label">Incident Description</label>
-            <textarea rows="3" class="form-control" [(ngModel)]="fnolForm.incidentDescription"></textarea>
+            <textarea rows="3" class="form-control" name="incidentDescription" [(ngModel)]="fnolForm.incidentDescription" required></textarea>
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem;">
-            <button class="btn btn-outline" (click)="showFnolModal.set(false)">Cancel</button>
-            <button class="btn btn-primary" (click)="onSubmitFnol()">Submit Claim</button>
+            <button type="button" class="btn btn-outline" (click)="showFnolModal.set(false)">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="claimForm.invalid">Submit Claim</button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   `
@@ -489,15 +491,7 @@ export class AppComponent implements OnInit {
   decisionRationaleInput = '';
 
   readonly showFnolModal = signal<boolean>(false);
-  fnolForm = {
-    market: 'SG',
-    claimType: 'Motor',
-    policyNumber: 'SG-MTR-994120',
-    assetIdentifier: 'SBA 9912 E (Honda CR-V)',
-    incidentLocation: 'Orchard Road, Singapore',
-    incidentDescription: 'Rear bumper collision at traffic light.',
-    estimatedLoss: 8500
-  };
+  fnolForm = this.emptyFnolForm();
 
   readonly claimantUser = computed(() => this.personas().find(p => p.role === 'Claimant') || null);
   readonly officerUser = computed(() => this.personas().find(p => p.role === 'ClaimsOfficer') || null);
@@ -505,10 +499,22 @@ export class AppComponent implements OnInit {
     this.activeRole() === 'Claimant' ? this.claimantUser() : this.officerUser()
   );
 
-  readonly selectedMarketCurrency = computed(() => {
+  selectedMarketCurrency(): string {
     const found = this.markets().find(m => m.code === this.fnolForm.market);
-    return found ? found.currency : 'SGD';
-  });
+    return found?.currency ?? '';
+  }
+
+  private emptyFnolForm() {
+    return {
+      market: '',
+      claimType: '',
+      policyNumber: '',
+      assetIdentifier: '',
+      incidentLocation: '',
+      incidentDescription: '',
+      estimatedLoss: null as number | null
+    };
+  }
 
   ngOnInit(): void {
     this.api
@@ -554,7 +560,7 @@ export class AppComponent implements OnInit {
   }
 
   loadAnalytics(): void {
-    this.api.getExposureAnalytics().subscribe(exp => this.analytics.set(exp));
+    this.api.getAnalyticsSummary().subscribe(exp => this.analytics.set(exp));
   }
 
   selectClaim(id: string, resetInputs = true): void {
@@ -570,6 +576,7 @@ export class AppComponent implements OnInit {
   }
 
   openFnolModal(): void {
+    this.fnolForm = this.emptyFnolForm();
     this.showFnolModal.set(true);
   }
 

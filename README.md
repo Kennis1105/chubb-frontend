@@ -18,6 +18,6 @@ Frontend single-codebase Angular 19 application serving both **Claimants (Policy
 
 ## Dual-Persona Architecture in a Single Angular Codebase
 Use the **Active Persona** switcher in the top navigation bar to switch live between:
-- **Claimants** (`Tan Wei Ming - SG`, `Chloe Chan - HK`, `Liam O'Connor - AU`): Self-service FNOL reporting, 4-stage visual claim tracker, and responding to officer information requests.
-- **Claims Officers** (`Sarah Jenkins - SG/HK`, `Rajesh Patel - AU/MY`, `Narong Srisai - TH/ID`): Multi-market triage queue, 1-click claim pickup, dynamic reserve adjustment (`AssessedReserve`), confidential adjuster notes, information requests, and settlement/rejection decisions.
+- **Claimants** (`Lim Hean Soon - SG`, `Chloe Chan - HK`, `Liam O'Connor - AU`): Self-service FNOL reporting, 4-stage visual claim tracker, and responding to officer information requests.
+- **Claims Officers** (`Admin Officer - SG/HK`, `Rajesh Patel - AU/MY`, `Narong Srisai - TH/ID`): Multi-market triage queue, 1-click claim pickup, dynamic reserve adjustment (`AssessedReserve`), confidential adjuster notes, information requests, and settlement/rejection decisions.
 - **VP Claims Manager** (`Victoria Lim - APAC`): Real-time consolidated USD & native-currency **Outstanding Liability Exposure** across all 6 APAC markets (`SG`, `HK`, `AU`, `MY`, `TH`, `ID`), team workload matrix, and live Outbox -> Kafka/SignalR domain event ticker.

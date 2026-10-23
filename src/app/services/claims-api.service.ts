@@ -244,7 +244,7 @@ export class ClaimsApiService {
     );
   }
 
-  getExposureAnalytics(): Observable<ExposureAnalytics> {
-    return this.http.get<ExposureAnalytics>(`${this.baseUrl}/analytics/exposure`);
+  getAnalyticsSummary(): Observable<ExposureAnalytics> {
+    return this.http.get<ExposureAnalytics>(`${this.baseUrl}/analytics/summary`);
   }
 }
