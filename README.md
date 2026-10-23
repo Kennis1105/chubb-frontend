@@ -1,23 +1,26 @@
-# Chubb APAC — Claims & Liability Exposure Portal (Angular 19)
+# Chubb APAC Claims Frontend
 
-Frontend single-codebase Angular 19 application serving both **Claimants (Policyholders)** and **Chubb Claims Staff (Claims Officers & Claims Managers)**.
+Angular frontend for the Chubb APAC Claims demo. The claimant view supports claim submission, status tracking, and responses to information requests. The claims officer view supports claim pickup, reserve assessment, information requests, and settlement or rejection.
 
-> **Backend Repository (`chubb-api`)**: Contains the `.NET 10` Clean Architecture (`IDispatcher` CQRS) API, Transactional Outbox + Kafka/SignalR worker, SpecKit specifications (`.specify/` & `specs/`), and the `AI_WORKING_JOURNAL.md`.
+## Run locally
 
-## Quick Start
+Keep this repository beside `chubb-api`. Start the API on `http://localhost:5150` first. The README in the sibling `chubb-api` repository has the full first-time setup, including optional local Kafka.
 
-1. Ensure `chubb-api` is running on `http://localhost:5150`:
-   ```bash
-   dotnet run --project src/Chubb.Claims.Api/Chubb.Claims.Api.csproj --urls "http://localhost:5150"
-   ```
-2. Install dependencies & start the Angular dev server (`http://localhost:4200`):
-   ```bash
-   npm install
-   npm start
-   ```
+From `chubb-frontend`:
 
-## Dual-Persona Architecture in a Single Angular Codebase
-Use the **Active Persona** switcher in the top navigation bar to switch live between:
-- **Claimants** (`Lim Hean Soon - SG`, `Chloe Chan - HK`, `Liam O'Connor - AU`): Self-service FNOL reporting, 4-stage visual claim tracker, and responding to officer information requests.
-- **Claims Officers** (`Admin Officer - SG/HK`, `Rajesh Patel - AU/MY`, `Narong Srisai - TH/ID`): Multi-market triage queue, 1-click claim pickup, dynamic reserve adjustment (`AssessedReserve`), confidential adjuster notes, information requests, and settlement/rejection decisions.
-- **VP Claims Manager** (`Victoria Lim - APAC`): Real-time consolidated USD & native-currency **Outstanding Liability Exposure** across all 6 APAC markets (`SG`, `HK`, `AU`, `MY`, `TH`, `ID`), team workload matrix, and live Outbox -> Kafka/SignalR domain event ticker.
+```bash
+npm ci
+ng serve
+```
+
+Open `http://localhost:4200`. Use the buttons in the top bar to switch between the claimant and officer views. The app gets claim data through REST and refreshes when it receives SignalR events from the API.
+
+If `ng` is not found, install the Angular 19 CLI with `npm install -g @angular/cli@19`.
+
+## Build
+
+```bash
+npm run build
+```
+
+The frontend starts with `src/main.ts`. `src/app/app.component.ts` contains the current screens and actions; `src/app/services/claims-api.service.ts` handles API and SignalR connections; `src/app/models/claims.models.ts` defines the response shapes.
